@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
+import android.location.Location
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -12,10 +13,8 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.TextView
 import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.gms.common.api.ResolvableApiException
-import com.google.android.gms.common.server.response.FastJsonResponse
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.Task
 import com.google.android.material.snackbar.Snackbar
@@ -76,7 +75,19 @@ class MainActivity : AppCompatActivity() {
             .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
             .setInterval(UPDATE_INTERVAL)
             .setFastestInterval(FASTEST_UPDATE_INTERVAL)
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                super.onLocationResult(locationResult)
+                onLocationChange(locationResult.lastLocation)
+            }
+        }
+
         getLocation()
+    }
+
+    override fun onStop() {
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback)
+        super.onStop()
     }
 
     private fun getLocation() {
@@ -86,9 +97,7 @@ class MainActivity : AppCompatActivity() {
                 fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
                 fusedLocationProviderClient.lastLocation.addOnSuccessListener(this) { location ->
                     if (location != null) {
-                        binding.coordinatesTextView.text =
-                            getString(R.string.coordinateDisplay, location
-                                .latitude, location.longitude)
+                        onLocationChange(location)
                     } else {
                         Log.e("main", "Location is null")
                     }
@@ -108,6 +117,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
         checkGPSAccuracy()
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback,
+            android.os.Looper.myLooper()!!)
     }
 
     private fun openSetting() {
@@ -154,6 +165,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun onLocationChange(lastLocation : Location) {
+        binding.coordinatesTextView.text = getString(R.string.coordinateDisplay, lastLocation
+            .latitude, lastLocation.longitude)
     }
 
 }
